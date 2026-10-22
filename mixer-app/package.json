@@ -1,0 +1,48 @@
+{
+  "name": "mixer-de-audio",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Controlador de áudio com quatro canais e OLED SSD1306",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "icons:generate": "node tools/generate-icons.cjs",
+    "icon:generate": "node tools/generate-app-icon.cjs",
+    "pack": "electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@fortawesome/free-brands-svg-icons": "6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "serialport": "13.0.0"
+  },
+  "devDependencies": {
+    "electron": "38.2.0",
+    "electron-builder": "26.0.12",
+    "rcedit": "4.0.1"
+  },
+  "build": {
+    "icon": "assets/icon.ico",
+    "afterPack": "tools/apply-app-icon.cjs",
+    "appId": "local.mixer.audio",
+    "productName": "Mixer de Audio",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "lib/**",
+      "ui/**",
+      "audio/**",
+      "assets/**",
+      "package.json"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "asarUnpack": [
+      "node_modules/@serialport/bindings-cpp/**",
+      "audio/**"
+    ]
+  }
+}

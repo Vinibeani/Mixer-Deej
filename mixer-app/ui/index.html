@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'"><title>Mixer de Áudio</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <img class="brand" src="brand-mark.svg" alt="Mixer de Áudio">
+  <button id="connection" class="connection"><i></i><span>Desconectado</span></button>
+  <div class="window-actions"><button id="settings" title="Configurações" aria-label="Configurações"></button><button id="minimize" aria-label="Minimizar">−</button><button id="close" aria-label="Fechar">×</button></div>
+</header>
+<main><section class="mixer"><div id="channels" class="channels"></div><aside id="layouts" aria-label="Modelos de tela OLED"></aside></section></main>
+<dialog id="channelDialog" class="channel-dialog">
+  <button class="dismiss" id="closeChannel" aria-label="Fechar">×</button><h2 id="channelTitle">Configurar canal 1</h2>
+  <nav class="tabs" id="channelTabs"><button data-tab="programs" class="active">Aplicativos</button><button data-tab="utilities">Áudio do sistema</button><button data-tab="labels">Ícones</button></nav>
+  <section class="tab-panel" id="programs"><div class="program-tools"><label class="all-apps">Todos os aplicativos<input id="allApps" type="checkbox"></label><input id="search" placeholder="Buscar aplicativos" aria-label="Buscar aplicativos"><button id="appInfo" class="info-button" title="O aplicativo precisa ter uma sessão de áudio. Use Todos os aplicativos para adicionar um que esteja inativo.">i</button></div><div id="apps" class="apps"></div><div class="list-actions"><button id="addProgram">Adicionar aplicativo…</button><button id="refreshApps">Atualizar</button></div></section>
+  <section class="tab-panel" id="utilities" hidden><div id="systemApps" class="apps system-apps"></div></section>
+  <section class="tab-panel" id="labels" hidden>
+  <div class="icon-selection"><div id="selectedIcon" class="selected-icon"></div><div><strong id="selectedIconName">Nenhum ícone escolhido</strong><small>O mesmo ícone aparece no canal e na OLED.</small></div><button id="removeIcon" class="clear-icon" disabled>Remover</button></div>
+  <div class="icon-search-row"><input id="iconSearch" type="search" placeholder="Buscar: Discord, volume, fone, jogos…" aria-label="Buscar ícones"><span id="iconCount" role="status"></span></div>
+  <nav id="iconCategories" class="icon-categories" aria-label="Categorias de ícones"><button data-category="popular" class="active">Principais</button><button data-category="apps">Aplicativos</button><button data-category="audio">Áudio</button><button data-category="games">Jogos</button><button data-category="recent">Recentes</button><button data-category="all">Todos</button></nav>
+  <div id="iconGrid" class="icon-grid" aria-label="Escolher ícone"></div><p id="iconEmpty" class="note" hidden>Nenhum ícone encontrado. Tente outro nome.</p>
+</section>
+  <p id="appError" class="error" role="status"></p>
+</dialog>
+<dialog id="deviceDialog" class="settings-dialog"><button class="dismiss" id="closeSettings" aria-label="Fechar">×</button><h2>Configurações</h2><div class="settings-body"><nav id="settingsTabs" class="side-tabs"><button data-tab="device" class="active">Dispositivo</button><button data-tab="general">Geral</button><button data-tab="about">Sobre</button></nav><div class="settings-content">
+  <section id="device" class="settings-panel"><div class="form-row"><label for="deviceSelect">Dispositivo:</label><select id="deviceSelect"><option value="">Nenhum dispositivo</option></select></div><div class="connection-buttons"><button id="refreshDevices">Atualizar</button><button id="connect">Conectar</button><button id="disconnect">Desconectar</button></div><div class="form-row"><label for="brightness">Brilho da OLED:</label><input id="brightness" type="range" min="0" max="255"></div><div class="section-title">Informações do dispositivo:</div><dl class="device-info"><dt>Nome:</dt><dd id="deviceName">—</dd><dt>Modelo:</dt><dd id="deviceModel">—</dd><dt>Versão do firmware:</dt><dd id="deviceFirmware">—</dd><dt>Conexão:</dt><dd>USB serial</dd></dl><p id="deviceError" class="error" role="status"></p></section>
+  <section id="general" class="settings-panel" hidden><label class="check-row"><input id="autostart" type="checkbox">Iniciar com o Windows</label><label class="check-row"><input id="tray" type="checkbox">Recolher para a bandeja ao fechar</label><label class="check-row"><input id="inverted" type="checkbox">Inverter os controles</label></section>
+  <section id="about" class="settings-panel" hidden><h3>Mixer de Áudio</h3><p>Versão <span id="version">0.4.0</span></p></section>
+  </div></div><button id="closeSettingsBottom" class="close-settings">FECHAR</button></dialog>
+<div id="deviceHint" hidden>Dispositivo não conectado</div><div id="toast" role="status" hidden></div><script src="icon-catalog.js"></script><script src="app.js"></script>
+</body></html>
