@@ -44,13 +44,3 @@ npm run pack
 ```
 
 O firmware usa Arduino AVR Boards **1.8.6** e U8g2 **2.36.17**. Veja os scripts de preparação e compilação no guia de firmware. Dependências, condições de uso e referência visual estão em `THIRD_PARTY.md` no pacote de fontes. Nenhuma licença pública foi escolhida para o código próprio.
-
-## Validação e limites
-
-O protocolo serial inclui CRC, confirmação de comandos, descarte de quadros inválidos e timeout de conexão. Os testes cobrem leitura fragmentada, corrupção, reconexão e preservação da seleção de ícones. A comunicação com o Nano real e a conexão automática no aplicativo foram verificadas, com perfil de teste sem destinos de áudio.
-
-Na validação de 18/10/2026, a OLED não respondeu ao Nano e os potenciômetros novos ainda não foram validados fisicamente. Leituras de entradas desconectadas são flutuantes. A migração não comprova o funcionamento das ligações ainda não montadas. Evidências em [VALIDACAO-NANO.md](VALIDACAO-NANO.md).
-
-Em 23/10/2026, o usuário confirmou que a montagem com a OLED e os quatro potenciômetros está funcionando. A atualização 0.4.1 foi verificada separadamente no Windows, sem regravar o Arduino.
-
-Este pacote de fontes contém somente a versão Nano ativa. Executáveis, ferramentas locais, configurações pessoais e históricos não estão incluídos. O aplicativo portátil é distribuído separadamente; também pode ser gerado com npm run pack.
