@@ -1,6 +1,6 @@
 {
   "name": "mixer-de-audio",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Controlador de áudio com quatro canais e OLED SSD1306",
   "main": "main.cjs",

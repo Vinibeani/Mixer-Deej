@@ -50,7 +50,6 @@ function updateChannel(i) {
   button.parentElement.classList.toggle('offline', !connected);
   if (c.symbol && c.icon) { const img = document.createElement('img'); img.src = c.icon; img.alt = iconById.get(c.symbol)?.label||''; button.append(img); }
   else { const plus = document.createElement('span'); plus.className = 'plus'; plus.textContent = '+'; button.append(plus); }
-  if (c.targets.length > 1) { const count = document.createElement('span'); count.className = 'count'; count.textContent = `+${c.targets.length - 1}`; button.append(count); }
   button.title = c.targets.map(targetName).join(', ') || `Canal ${i + 1}`; button.setAttribute('aria-label', `Configurar canal ${i + 1}`);
 }
 async function commit() { await api.save(config); }
@@ -65,16 +64,17 @@ async function commitChannel(index = activeChannel) {
 }
 function addRow(container, s) {
   const c = config.channels[activeChannel], row = document.createElement('label'); row.className = 'app-item';
-  const check = document.createElement('input'); check.type = 'checkbox'; check.checked = c.targets.includes(s.target);
+  const check = document.createElement('input'); check.type = 'checkbox'; check.checked = c.targets.some(target => AudioTargets.matches(target, s));
   const label = document.createElement('span'); label.textContent = s.name; row.append(check, label);
-  check.addEventListener('change', () => { c.targets = check.checked ? [...new Set([...c.targets, s.target])] : c.targets.filter(t => t !== s.target); c.targetNames[s.target] = s.name; void commitChannel().catch(report); });
+  row.title = [s.name, s.path || s.target].join('\n');
+  check.addEventListener('change', () => { c.targets = check.checked ? [...new Set([...c.targets, s.target])] : c.targets.filter(t => !AudioTargets.matches(t, s)); c.targetNames[s.target] = s.name; void commitChannel().catch(report); });
   container.append(row);
 }
 function renderApps() {
   const list = $('apps'); list.replaceChildren(); const search = $('search').value.toLowerCase();
-  const available = new Map(($('allApps').checked ? [...installed, ...sessions] : sessions).filter(s => !s.target.startsWith('@')).map(s => [s.target, s]));
-  for (const t of config.channels[activeChannel].targets) if (!t.startsWith('@') && !available.has(t)) available.set(t, { target: t, name: config.channels[activeChannel].targetNames[t] || targetName(t) });
-  [...available.values()].sort((a, b) => a.name.localeCompare(b.name)).filter(s => s.name.toLowerCase().includes(search)).forEach(s => addRow(list, s));
+  const available = new Map(AudioTargets.merge($('allApps').checked ? installed : [], sessions).map(s => [AudioTargets.key(s.target), s]));
+  for (const t of config.channels[activeChannel].targets) if (AudioTargets.isApplication(t) && !available.has(AudioTargets.key(t))) available.set(AudioTargets.key(t), { target: t, name: config.channels[activeChannel].targetNames[t] || targetName(t) });
+  [...available.values()].sort((a, b) => a.name.localeCompare(b.name)).filter(s => `${s.name} ${s.path || s.target}`.toLowerCase().includes(search)).forEach(s => addRow(list, s));
   if (!available.size) { const text = document.createElement('p'); text.className = 'note'; text.textContent = 'Reproduza áudio em um aplicativo ou marque Todos os aplicativos.'; list.append(text); }
 }
 function renderUtilities() {
@@ -82,10 +82,17 @@ function renderUtilities() {
   const groups = [['Sistema', [{ target: '@master', name: 'Volume geral' }, { target: '@microphone', name: 'Microfone' }, { target: '@system', name: 'Sons do Windows' }]], ['Dispositivos de saída', endpoints.filter(s => s.kind === 'output')], ['Dispositivos de entrada', endpoints.filter(s => s.kind === 'input')]];
   for (const [title, items] of groups) { const h = document.createElement('h3'); h.className = 'group-title'; h.textContent = title; list.append(h); items.forEach(s => addRow(list, s)); }
 }
+let refreshRevision = 0;
 async function refreshApps() {
+  const revision = ++refreshRevision;
+  const includeInstalled = $('allApps').checked;
   $('appError').textContent = 'Carregando…';
-  try { [sessions, endpoints] = await Promise.all([api.sessions(), api.endpoints()]); if ($('allApps').checked && !installed.length) installed = await api.allApps(); $('appError').textContent = ''; renderApps(); renderUtilities(); }
-  catch (e) { $('appError').textContent = errorMessage(e); }
+  try {
+    const [nextSessions, nextEndpoints, nextInstalled] = await Promise.all([api.sessions(), api.endpoints(), includeInstalled ? api.allApps() : Promise.resolve(null)]);
+    if (revision !== refreshRevision) return;
+    sessions = nextSessions; endpoints = nextEndpoints; if (nextInstalled) installed = nextInstalled;
+    $('appError').textContent = ''; renderApps(); renderUtilities();
+  } catch (e) { if (revision === refreshRevision) $('appError').textContent = errorMessage(e); }
 }
 function setChannelTab(tab) { activeTab = tab; $('channelDialog').classList.toggle('picking-icons',tab==='labels');document.querySelectorAll('#channelTabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); document.querySelectorAll('.tab-panel').forEach(p => { p.hidden = p.id !== tab; }); }
 function appendIconPage(){
@@ -152,7 +159,7 @@ async function init() {
 $('settings').addEventListener('click', () => openSettings().catch(report)); $('connection').addEventListener('click', () => openSettings().catch(report)); $('minimize').addEventListener('click', () => api.window('minimize')); $('close').addEventListener('click', () => api.window('close'));
 $('closeChannel').addEventListener('click', () => $('channelDialog').close()); $('closeSettings').addEventListener('click', () => $('deviceDialog').close()); $('closeSettingsBottom').addEventListener('click', () => $('deviceDialog').close());
 $('channelTabs').addEventListener('click', e => { if (e.target.dataset.tab) setChannelTab(e.target.dataset.tab); }); $('settingsTabs').addEventListener('click', e => { if (e.target.dataset.tab) setSettingsTab(e.target.dataset.tab); });
-$('allApps').addEventListener('change', refreshApps); $('search').addEventListener('input', renderApps); $('refreshApps').addEventListener('click', refreshApps); $('appInfo').addEventListener('click', () => notify('Reproduza um som no aplicativo para que ele apareça. Todos os aplicativos também lista os programas de computador instalados.'));
+$('allApps').addEventListener('change', refreshApps); $('search').addEventListener('input', renderApps); $('refreshApps').addEventListener('click', refreshApps); $('appInfo').addEventListener('click', () => notify('Atualizar busca novamente os aplicativos com sessão de áudio em todas as saídas do Windows. Reproduza um som no programa para que ele apareça. Todos os aplicativos inclui programas instalados.'));
 $('addProgram').addEventListener('click', async () => { try { const program = await api.program(); if (program) { installed.push(program); $('allApps').checked = true; const c = config.channels[activeChannel]; c.targets = [...new Set([...c.targets, program.target])]; await commitChannel(); renderApps(); } } catch (e) { report(e); } });
 $('iconSearch').addEventListener('input',renderIconGrid);$('iconSearch').addEventListener('search',renderIconGrid);
 $('iconCategories').addEventListener('click',event=>{const button=event.target.closest('[data-category]');if(button){iconCategory=button.dataset.category;$('iconSearch').value='';renderIconGrid();}});

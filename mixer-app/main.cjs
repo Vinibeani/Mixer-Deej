@@ -5,6 +5,7 @@ const { AudioService } = require('./lib/audio.cjs');
 const { AutoConnect } = require('./lib/auto-connect.cjs');
 const { SerialMixer } = require('./lib/serial-mixer.cjs');
 const { selection } = require('./ui/icon-catalog.js');
+const { matches: matchesAudioTarget } = require('./ui/audio-targets.js');
 const knownIcons = new Set(require('./ui/icons.json').map(icon=>icon.name));
 const verify = process.argv.includes('--verify');
 if (verify) app.setPath('userData', path.join(app.getPath('temp'), 'mixer-audio-verification'));
@@ -120,8 +121,7 @@ app.whenReady().then(async () => {
   }
   ipcMain.handle('sessions', async () => withIcons(await audio.request('list')));
   ipcMain.handle('endpoints', async () => audio.request('endpoints'));
-  let allAppsCache;
-  ipcMain.handle('all-apps', async () => { if(!allAppsCache)allAppsCache=await withIcons(await audio.request('all-apps'));return allAppsCache; });
+  ipcMain.handle('all-apps', async () => withIcons(await audio.request('all-apps')));
   ipcMain.handle('program', async()=>{
     const result=await dialog.showOpenDialog(win,{title:'Selecionar aplicativo',buttonLabel:'Selecionar',filters:[{name:'Aplicativo',extensions:['exe']}],properties:['openFile']});
     if(result.canceled)return null;
@@ -138,7 +138,7 @@ app.whenReady().then(async () => {
       const snapshot=[...await audio.request('list'),...await audio.request('endpoints')];
       if(draining||volumeJobs.size)return;
       let changed=false;
-      config.channels.forEach((c,i)=>{const s=snapshot.find(s=>s.target===c.targets[0]);if(s){const volume=Math.round(s.volume*100);if(Math.abs(volume-c.volume)>1){c.volume=volume;changed=true;publish({type:'volume',channel:i,volume});}}});
+      config.channels.forEach((c,i)=>{const s=c.targets.map(target=>snapshot.find(s=>matchesAudioTarget(target,s))).find(Boolean);if(s){const volume=Math.round(s.volume*100);if(Math.abs(volume-c.volume)>1){c.volume=volume;changed=true;publish({type:'volume',channel:i,volume});}}});
       if(changed)send(3,config.channels.map(c=>c.volume));
     }catch(e){publish({type:'audio-status',message:e.message});}finally{polling=false;}
   },2000);

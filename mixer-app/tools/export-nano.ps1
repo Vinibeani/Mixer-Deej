@@ -1,7 +1,7 @@
 param([string]$Destino)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-if (!$Destino) { $Destino = Join-Path $root 'entregas/mixer-de-audio-nano-fonte-0.4.0' }
+if (!$Destino) { $version = (Get-Content -LiteralPath (Join-Path $root 'mixer-app/package.json') -Raw | ConvertFrom-Json).version; $Destino = Join-Path $root "entregas/mixer-de-audio-nano-fonte-$version" }
 if (Test-Path -LiteralPath $Destino) { throw 'Destino existente. Escolha outra pasta para preservar a entrega anterior.' }
 New-Item -ItemType Directory -Path $Destino | Out-Null
 foreach ($folder in @('mixer-app','firmware','windows','licenses','docs/images')) {

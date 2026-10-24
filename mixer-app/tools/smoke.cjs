@@ -1,4 +1,4 @@
-const { app } = require('electron');
+const { app, ipcMain } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 process.argv.push('--no-auto-connect');
@@ -59,6 +59,29 @@ app.on('browser-window-created', (_, win) => {
         $('channelDialog').close();config=baseline;await window.mixer.save(config);config.channels.forEach((_,i)=>updateChannel(i));refreshPreviews();
         return {channels:4,layouts:3,icons:icons.length,brands:icons.filter(i=>i.category==='apps').length,iconSync:true,noAutomaticIcons:true,removedControlsAbsent:true,noMidiConfiguration:true,portugueseSearch:true,fullCatalog:true,allApps:all.length,audioDevices:audioDevices.length,sessions:sources.length,compatibleDevices:hardware.length};
       })()`);
+      // Exercise refresh through IPC: a game starts after the client was listed.
+      let refreshCalls = 0, catalogCalls = 0;
+      const client = { target: 'C:\\Riot Games\\League of Legends\\LeagueClientUxRender.exe', name: 'LeagueClientUxRender', processName: 'LeagueClientUxRender', volume: 0.5 };
+      const game = { target: 'C:\\Riot Games\\League of Legends\\Game\\League of Legends.exe', name: 'League of Legends', processName: 'League of Legends', volume: 0.5 };
+      ipcMain.removeHandler('sessions');
+      ipcMain.handle('sessions', async () => ++refreshCalls === 1 ? [client] : [client, game]);
+      ipcMain.removeHandler('all-apps');
+      ipcMain.handle('all-apps', async () => { catalogCalls++; return []; });
+      await win.webContents.executeJavaScript(`(async()=>{
+        openChannel(0); await refreshApps();
+        await refreshApps();
+        if (![...$('apps').querySelectorAll('.app-item span')].some(row=>row.textContent==='League of Legends')) throw Error('Refresh did not discover game audio');
+        if (![...$('apps').querySelectorAll('.app-item span')].some(row=>row.textContent==='LeagueClientUxRender')) throw Error('Original process names were changed');
+        $('allApps').checked=true; await refreshApps(); await refreshApps();
+        if ($('apps').querySelectorAll('.app-item').length!==2) throw Error('Duplicate audio applications');
+        config.channels[0].targets=${JSON.stringify([client.target, game.target])};
+        updateChannel(0);
+        if(assigns[0].querySelector('.count')||assigns[0].textContent.includes('+1'))throw Error('Application count remains');
+        if(!assigns[0].title.includes('LeagueClientUxRender')||!assigns[0].title.includes('League of Legends'))throw Error('Assignments missing from tooltip');
+        $('channelDialog').close();
+      })()`);
+      if(catalogCalls!==2||refreshCalls<4)throw Error('Application refresh used stale cache');
+      result.audioRefresh = { refreshCalls, catalogCalls, originalNamesPreserved: true, channelCountHidden: true };
       const painted = () => win.webContents.executeJavaScript('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
       await painted();
       await fs.writeFile(path.join(__dirname, '../../mixer-preview.png'), (await win.webContents.capturePage()).toPNG());

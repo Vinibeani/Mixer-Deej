@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using System.Runtime.InteropServices;
 
 namespace MixerAudio {
@@ -95,11 +96,25 @@ namespace MixerAudio {
     [PreserveSig] int QueryHardwareSupport(out uint mask);
     [PreserveSig] int GetVolumeRange(out float min, out float max, out float increment);
   }
-  public class SessionInfo { public string target; public string name; public string path; public string kind; public float volume; }
+  public class SessionInfo { public string target; public string name; public string path; public string processName; public string kind; public float volume; }
   public static class Controller {
     static void Check(int hr) { Marshal.ThrowExceptionForHR(hr); }
     static void Release(object obj) { if (obj != null && Marshal.IsComObject(obj)) Marshal.ReleaseComObject(obj); }
     [DllImport("ole32.dll")] static extern int PropVariantClear(ref PropertyValue value);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref uint size);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    static string ProcessPath(uint pid) {
+      // Query limited information; MainModule also requires access to process memory.
+      IntPtr handle = OpenProcess(0x1000, false, pid);
+      if (handle == IntPtr.Zero) return null;
+      try { var name = new StringBuilder(32768); uint size = (uint)name.Capacity; return QueryFullProcessImageName(handle, 0, name, ref size) ? name.ToString() : null; }
+      finally { CloseHandle(handle); }
+    }
+    public static bool MatchesTarget(string target, SessionInfo session) {
+      if (String.Equals(target, session.target, StringComparison.OrdinalIgnoreCase)) return true;
+      return target.StartsWith("@process:", StringComparison.OrdinalIgnoreCase) && String.Equals(target.Substring(9), session.processName, StringComparison.OrdinalIgnoreCase);
+    }
     static IMMDevice DefaultDevice(int flow = 0) {
       IMMDeviceEnumerator e = (IMMDeviceEnumerator)new DeviceEnumerator();
       try { IMMDevice device; Check(e.GetDefaultAudioEndpoint(flow, 1, out device)); return device; }
@@ -113,8 +128,9 @@ namespace MixerAudio {
       if (pid == 0) return null;
       try {
         using (Process process = Process.GetProcessById((int)pid)) {
-          string file = process.MainModule.FileName;
-          return new SessionInfo { target = file, path = file, name = process.ProcessName, volume = volume };
+          string file = ProcessPath(pid);
+          string processName = process.ProcessName;
+          return new SessionInfo { target = file ?? "@process:" + processName, path = file, processName = processName, name = processName, volume = volume };
         }
       } catch (System.ComponentModel.Win32Exception) { return null; }
       catch (InvalidOperationException) { return null; }
@@ -128,6 +144,7 @@ namespace MixerAudio {
         for (int i = 0; i < count; i++) {
           object raw; Check(sessions.GetSession(i, out raw));
           try { var session = (IAudioSessionControl2)raw; int state; Check(session.GetState(out state)); if (state != 2) action(session); }
+          catch (COMException) { /* A session may disappear while the mixer is refreshing. */ }
           finally { Release(raw); }
         }
       } finally { Release(sessions); Release(manager); }
@@ -174,7 +191,7 @@ namespace MixerAudio {
         var enumerator=(IMMDeviceEnumerator)new DeviceEnumerator();
         try { foreach(string target in targets) if(target.StartsWith("@device:")) { IMMDevice d; Check(enumerator.GetDevice(target.Substring(8),out d)); try { EndpointLevel(d,volume); matched++; } finally { Release(d); } } }
         finally { Release(enumerator); }
-        Devices(0, delegate(IMMDevice d) { Visit(d, delegate(IAudioSessionControl2 session) { var info = Describe(session); if (info != null && chosen.Contains(info.target)) { Guid c = Guid.Empty; Check(((ISimpleAudioVolume)session).SetMasterVolume(volume, ref c)); matched++; } }); });
+        Devices(0, delegate(IMMDevice d) { Visit(d, delegate(IAudioSessionControl2 session) { var info = Describe(session); if (info != null && Array.Exists(targets, target => MatchesTarget(target, info))) { Guid c = Guid.Empty; Check(((ISimpleAudioVolume)session).SetMasterVolume(volume, ref c)); matched++; } }); });
         return matched;
       } finally { Release(endpoint); Release(device); }
     }
