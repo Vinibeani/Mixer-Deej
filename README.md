@@ -42,5 +42,3 @@ npm test
 npm start
 npm run pack
 ```
-
-O firmware usa Arduino AVR Boards **1.8.6** e U8g2 **2.36.17**. Veja os scripts de preparação e compilação no guia de firmware. Dependências, condições de uso e referência visual estão em `THIRD_PARTY.md` no pacote de fontes. Nenhuma licença pública foi escolhida para o código próprio.
